@@ -1,0 +1,75 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Seleziona Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Installa XcodeGen
+        run: brew install xcodegen
+
+      - name: Genera il progetto Xcode
+        run: xcodegen generate
+
+      - name: Scarica i core libretro
+        run: bash scripts/fetch_cores.sh
+
+      - name: Scarica i file di sistema PPSSPP
+        run: bash scripts/fetch_assets.sh
+
+      - name: Compila
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Arcadia.xcodeproj \
+            -scheme Arcadia \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log | grep -E "error:|warning: unable|BUILD (SUCCEEDED|FAILED)" || true
+          test -d build/Build/Products/Release-iphoneos/Arcadia.app
+
+      - name: Log di compilazione (in caso di errore)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
+      - name: Crea IPA
+        run: bash scripts/package_ipa.sh
+
+      - name: Carica IPA come artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Arcadia-ipa
+          path: output/Arcadia.ipa
+
+      - name: Pubblica in Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Arcadia build ${{ github.run_number }}
+          files: output/Arcadia.ipa
+          make_latest: true

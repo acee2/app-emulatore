@@ -1,0 +1,7 @@
+Arcadia.xcodeproj/
+build/
+build_extra/
+output/
+*.ipa
+.DS_Store
+xcuserdata/
