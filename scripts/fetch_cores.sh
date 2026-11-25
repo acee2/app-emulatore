@@ -12,7 +12,9 @@ ok=0
 for c in $CORES; do
   name="${c}_libretro_ios"
   echo "→ $name"
-  if ! curl -fsSL --retry 3 --retry-delay 5 "$BASE/$name.dylib.zip" -o "$TMP/$name.zip"; then
+  # Alcuni core (build CMake) sono pubblicati senza il suffisso _ios
+  if ! curl -fsSL --retry 3 --retry-delay 5 "$BASE/$name.dylib.zip" -o "$TMP/$name.zip" && \
+     ! curl -fsSL --retry 3 --retry-delay 5 "$BASE/${c}_libretro.dylib.zip" -o "$TMP/$name.zip"; then
     echo "::warning::Core $name non disponibile sul buildbot: la relativa console risulterà 'Non incluso'."
     continue
   fi
